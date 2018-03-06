@@ -1,0 +1,2172 @@
+#include<stdio.h>
+#include<string.h>
+#include<math.h>
+#include<stdlib.h>
+#include<time.h>
+#include<windows.h>
+#include<conio.h>
+#include<malloc.h>
+#include<ctype.h>
+#define UP 72
+#define DOWN 80
+#define LEFT 75
+#define RIGHT 77
+#define ENTER 13 
+#define ESC 27
+#define BACKSPACE 8
+
+void Hide_cursor(int Control);
+
+void goto_xy(int x, int y);
+
+int RandInfor[100][4];
+
+int CR = 0, WR = 0, WP = 0;
+
+int Line_check_count(FILE *SAO, FILE *SAT);
+
+int Initialize(int day_words, int hard_words, int total_words, int language);
+
+void Rand_Generate(int sample_total, int sample_limit);
+
+char Word_fetch(char Mid[100], FILE *Fp, int line);
+
+void Todaystudy(int total_words, int day_words, FILE *Words, FILE *Meanings, int language, int mods);
+
+void Wordsview(FILE *WORDS, FILE *MEANINGS, int language, int total_words, int record);
+
+int Settings_Menu(int language);
+
+int Settings_Option(int *language, int record, int *day_words, int *mod);
+
+void Summary(int time, int hard_words, int language);
+
+int Change_Add_Words(int language, int hard_words);
+
+int Empty(int hard_words, int language);
+
+int Addwords(int hard_words, int language);
+
+int Changewords(int hard_words, int langugae, FILE *DIFFW, FILE *DIFFM);
+
+void File_Operation(int control, int line, char Mid[100], FILE *DIFF, int hard_words);
+
+int Sec_Operation(int line, int language, FILE *DIFFW, FILE *DIFFM);
+
+int Words_Option(int change, int hard_words, int language, FILE *DIFFW, FILE *DIFFM);
+
+void Directions(int language);
+
+int main() {
+
+	Hide_cursor(FALSE);
+
+	char title[30];
+	FILE *TI = NULL;
+	TI = fopen("Title.txt", "r");
+	if (TI == NULL) exit(1);
+	fgets(title, 30, TI);
+	fclose(TI);
+
+	system(title);
+	system("mode con cols=65 lines=36");
+	srand((unsigned)time(NULL));
+
+	clock_t Start, Finish;
+
+	int record = 1;
+	int day_words = 20;
+	int hard_words = 0;
+	int total_words = 0;
+	int language = 1;
+	int setting = 0;
+	int mods = 0, change;
+	int time;
+	int back = 1;
+
+	FILE *Totalwords = NULL;
+	Totalwords = fopen("Totalwords/Vocabulary.txt", "r");
+	if (Totalwords == NULL) exit(1);
+
+	FILE *Totalmeanings = NULL;
+	Totalmeanings = fopen("Totalwords/Meaning.txt", "r");
+	if (Totalmeanings == NULL) exit(1);
+
+	Start = clock();
+	while (true) {
+		FILE *Hardwords = NULL;
+		Hardwords = fopen("Hardwords/Vocabulary.txt", "r");
+		if (Hardwords == NULL) exit(1);
+
+		FILE *Hardmeanings = NULL;
+		Hardmeanings = fopen("Hardwords/Meaning.txt", "r");
+		if (Hardmeanings == NULL) exit(1);
+
+
+		hard_words = Line_check_count(Hardwords, Hardmeanings);
+		total_words = Line_check_count(Totalwords, Totalmeanings);
+
+		record = Initialize(day_words, hard_words, total_words, language);
+
+		switch (record) {
+		case 1:
+			Todaystudy(total_words, day_words, Totalwords, Totalmeanings, language, mods);
+			break;
+
+		case 2:
+			Wordsview(Hardwords, Hardmeanings, language, hard_words, record);
+			break;
+
+		case 3:
+			Wordsview(Totalwords, Totalmeanings, language, total_words, record);
+			break;
+
+		case 4:
+			back = 1;
+			while (back) {
+				change = Change_Add_Words(language, hard_words);
+				back = Words_Option(change, hard_words, language, Hardwords, Hardmeanings);
+			}
+			break;
+
+		case 5:
+			Directions(language);
+			break;
+
+		case 6:
+			back = 1;
+			while (back) {
+				setting = Settings_Menu(language);
+				back = Settings_Option(&language, setting, &day_words, &mods);
+			}
+			break;
+
+		case 7: case 0:
+			Finish = clock();
+			time = (Finish - Start) / CLOCKS_PER_SEC;
+			Summary(time, hard_words, language);
+			break;
+
+		default:
+			printf("Error\n");
+			exit(1);
+			break;
+
+		}
+		fclose(Hardwords);
+		fclose(Hardmeanings);
+	}
+
+	fclose(Totalwords);
+	fclose(Totalmeanings);
+}
+
+int Line_check_count(FILE *SAO, FILE *SAT) {
+
+	int line_fir = 0, line_sec = 0;
+	char Mid[100];
+	int judge = 0;
+
+	while (fgets(Mid, 100, SAO) != NULL)
+		line_fir++;
+
+	while (fgets(Mid, 100, SAT) != NULL)
+		line_sec++;
+
+	judge = line_fir != line_sec ? 1 : 0;
+
+	rewind(SAO);
+	rewind(SAT);
+
+	if (judge) {
+		printf("The number of vocabulary is %d, the number of meaning is %d\n", line_fir, line_sec);
+		printf("\nWarnning:the files have been damaged.Please check again\n");
+		exit(1);
+	}
+
+	return line_fir;
+}
+
+int Initialize(int day_words, int hard_words, int total_words, int language) {
+
+	char option;
+	int record = 1;
+
+	FILE *INP = NULL;
+
+	if (language)
+		INP = fopen("Chinese/Initialize.txt", "r");
+	else
+		INP = fopen("English/Initialize.txt", "r");
+
+	if (INP == NULL) exit(1);
+	int store[4];
+	store[0] = day_words;
+	store[1] = hard_words;
+	store[2] = total_words;
+
+	while (true) {
+		char Mid[100];
+		int count = 0;
+		printf("\n\n\n\n");
+
+		while (fgets(Mid, sizeof(Mid), INP)) {
+			if (!language && count >= 4 && count <= 18) printf(" ");
+			if ((count >= 5 || count <= 17) && count % 2 && count / 2 - 1 == record) {
+				int len = strlen(Mid);
+				Mid[3] = '-', Mid[4] = '-', Mid[5] = '>';
+				Mid[len - 1] = '<', Mid[len] = '-', Mid[len + 1] = '-';
+				Mid[len + 2] = '\n';
+			}
+
+			if (count < 21)
+				printf(" ");
+
+			if (language)
+				printf("         ");
+			printf("    ");
+
+			if (count == 5 || count == 7 || count == 9) {
+				char buff[100];
+				char *behind;
+				behind = strchr(Mid, '&') + 1;
+				sscanf(Mid, "%[^&]", buff);
+				printf("%s%d%s", buff, store[count / 2 - 2], behind);
+			}
+			else {
+				printf("%s", Mid);
+			}
+
+			count++;
+			memset(Mid, 0, sizeof(Mid));
+		}
+
+		option = _getch();
+
+		if (isdigit(option) && option <= '6') {
+			record = option - '0';
+		}
+		else {
+			switch (option) {
+			case UP: case 'w': case 'W':
+				if (record > 1)
+					record--;
+				break;
+			case DOWN: case 's': case 'S':
+				if (record < 7)
+					record++;
+				break;
+			default: break;
+			}
+		}
+
+		rewind(INP);
+		system("CLS");
+		if (option == ENTER || (option >= '0' && option <= '6')) break;
+	}
+
+	fclose(INP);
+
+	return record;
+}
+
+void Rand_Generate(int sample_total, int sample_limit) {
+
+	int n = sample_total;
+	int *Rand_Temp = (int *)malloc(sizeof(int) * 10000);
+
+	for (int i = 0; i < sample_total; i++) {
+		Rand_Temp[i] = i + 1;
+	}
+
+	for (int i = 0; i < sample_limit; i++) {
+		int t = rand() % n;
+		RandInfor[i][0] = Rand_Temp[t];
+		Rand_Temp[t] = Rand_Temp[n - 1];
+		n--;
+
+		for (int j = 1; j < 4; j++) {
+			RandInfor[i][j] = rand() % sample_total;
+
+			for (int k = 0; k < j; k++) {
+				if (RandInfor[i][j] == RandInfor[i][k]) {
+					RandInfor[i][j] = rand() % sample_total;
+					k = 0;
+				}
+			}
+		}
+	}
+	free(Rand_Temp);
+}
+
+char Word_fetch(char Mid[100], FILE *Fp, int line) {
+
+	int count = 0;
+
+	while (fgets(Mid, 100, Fp)) {
+		if (count == line) break;
+		count++;
+	}
+
+	rewind(Fp);
+
+	return *Mid;
+}
+
+void Todaystudy(int total_words, int day_words, FILE *Words, FILE *Meanings, int language, int mods) {
+
+	Rand_Generate(total_words, day_words);
+
+	FILE *QA = NULL;
+	if (!mods) {
+		if (language)
+			QA = fopen("Chinese/Todaystudy/Q&A.txt", "r");
+		else
+			QA = fopen("English/Todaystudy/Q&A.txt", "r");
+	}
+	else {
+		if (language)
+			QA = fopen("Chinese/Todaystudy/A&Q.txt", "r");
+		else
+			QA = fopen("English/Todaystudy/A&Q.txt", "r");
+	}
+
+	if (QA == NULL) exit(1);
+
+	FILE *COR = NULL;
+	if (language)
+		COR = fopen("Chinese/Todaystudy/Correct.txt", "r");
+	else
+		COR = fopen("English/Todaystudy/Correct.txt", "r");
+	if (COR == NULL) exit(1);
+
+	FILE *WRO = NULL;
+	if (language)
+		WRO = fopen("Chinese/Todaystudy/Wrong.txt", "r");
+	else
+		WRO = fopen("English/Todaystudy/Wrong.txt", "r");
+	if (WRO == NULL) exit(1);
+
+	int list[100];
+	int addmore[100];
+	int loc = 0;
+
+	for (int num = 0; num < day_words + loc; num++) {
+		int nums = 0;
+		if (num >= day_words) {
+			nums = addmore[num - day_words];
+			if (num == day_words) {
+				fclose(QA);
+				FILE *QA = NULL;
+				if (!mods) {
+					if (language)
+						QA = fopen("Chinese/Todaystudy/Q&A+.txt", "r");
+					else
+						QA = fopen("English/Todaystudy/Q&A+.txt", "r");
+				}
+				else {
+					if (language)
+						QA = fopen("Chinese/Todaystudy/A&Q+.txt", "r");
+					else
+						QA = fopen("English/Todaystudy/A&Q+.txt", "r");
+				}
+			}
+		}
+		else list[num] = rand() % 4;
+
+		char vocabulary[100], meanings[4][100], meaning[100];
+
+		if (!mods) {
+			if (num >= day_words)
+				*vocabulary = Word_fetch(vocabulary, Words, RandInfor[nums][0]);
+			else
+				*vocabulary = Word_fetch(vocabulary, Words, RandInfor[num][0]);
+		}
+		else {
+			if (num >= day_words)
+				*vocabulary = Word_fetch(vocabulary, Meanings, RandInfor[nums][0]);
+			else
+				*vocabulary = Word_fetch(vocabulary, Meanings, RandInfor[num][0]);
+		}
+
+		int count = 1;
+
+		if (!mods) {
+			if (num < day_words)
+				for (int j = 0; j < 4; j++) {
+					if (j == list[num]) {
+						*meaning = Word_fetch(meaning, Meanings, RandInfor[num][0]);
+					}
+					else {
+						*meaning = Word_fetch(meaning, Meanings, RandInfor[num][count++]);
+					}
+					strcpy(meanings[j], meaning);
+					memset(meaning, 0, sizeof(meaning));
+				}
+			else {
+				list[nums] = rand() % 4;
+				for (int j = 0; j < 4; j++) {
+					if (j == list[nums]) {
+						*meaning = Word_fetch(meaning, Meanings, RandInfor[nums][0]);
+					}
+					else {
+						*meaning = Word_fetch(meaning, Meanings, RandInfor[nums][count++]);
+					}
+					strcpy(meanings[j], meaning);
+					memset(meaning, 0, sizeof(meaning));
+				}
+			}
+		}
+		else {
+			if (num < day_words)
+				for (int j = 0; j < 4; j++) {
+					if (j == list[num]) {
+						*meaning = Word_fetch(meaning, Words, RandInfor[num][0]);
+					}
+					else {
+						*meaning = Word_fetch(meaning, Words, RandInfor[num][count++]);
+					}
+					strcpy(meanings[j], meaning);
+					memset(meaning, 0, sizeof(meaning));
+				}
+			else {
+				list[nums] = rand() % 4;
+				for (int j = 0; j < 4; j++) {
+					if (j == list[nums]) {
+						*meaning = Word_fetch(meaning, Words, RandInfor[nums][0]);
+					}
+					else {
+						*meaning = Word_fetch(meaning, Words, RandInfor[nums][count++]);
+					}
+					strcpy(meanings[j], meaning);
+					memset(meaning, 0, sizeof(meaning));
+				}
+
+			}
+		}
+
+		char Mid[100];
+		char option;
+		int record = 0;
+
+		while (true) {
+			int count = 0;
+			while (fgets(Mid, 100, QA)) {
+
+				printf("          ");
+				switch (count) {
+				case 5:
+					Mid[strlen(Mid) - 1] = '\0';
+					printf("%s%d\n", Mid, num < day_words ? num + 1 : num - day_words + 1);
+					break;
+				case 7:
+					Mid[strlen(Mid) - 1] = '\0';
+					printf("%s%s", Mid, vocabulary);
+					break;
+				case 11: case 13: case 15: case 17:
+					if (count / 2 - 5 == record) {
+						unsigned int loc = 0;
+						for (; loc < strlen(Mid); loc++)
+							if (Mid[loc] != ' ' && Mid[loc] != '\t') break;
+						Mid[loc - 1] = '>', Mid[loc - 2] = '-', Mid[loc - 3] = '-';
+					}
+					Mid[strlen(Mid) - 1] = '\0';
+					printf("%s%s\n", Mid, meanings[count / 2 - 5]);
+					break;
+				default:
+					printf("%s", Mid);
+					break;
+				}
+				count++;
+			}
+
+			int D_or_P = 0;
+			option = _getch();
+			if (option == -32) {
+				option = _getch();
+				D_or_P = 1;
+			}
+
+			switch (option) {
+			case UP: case 'w': case 'W':
+				if (record > 0)
+					record--;
+				break;
+			case 's': case 'S':
+				if (record < 3)
+					record++;
+				break;
+			case 'p':
+				if (num && num < day_words)
+					num -= 2;
+				else
+					num--;
+				break;
+			case 'q': case 'Q': case ESC:
+				system("CLS");
+				return;
+			case 'a': case 'b': case 'c': case 'd':
+				record = option - 'a';
+				break;
+			case 'A': case 'B': case 'C': case 'D':
+				record = option - 'A';
+				break;
+			}
+			if (option == 'P') {
+				if (D_or_P && record < 3)
+					record++;
+				if (!D_or_P && num)
+					num -= 2;
+				if (!D_or_P && !num)
+					num--;
+			}
+
+
+			rewind(COR);
+			rewind(WRO);
+			rewind(QA);
+			if (option == 'p' || option == ENTER || (option == 'P' && !D_or_P) ||
+				(option >= 'a' && option <= 'd') || (option >= 'A' && option <= 'D'))
+				break;
+
+			system("CLS");
+		}
+
+		if (option != 'p' && option != 'P') {
+			char ans[100];
+			int wait = 0;
+			if (num < day_words)
+				wait = list[num];
+			else
+				wait = list[nums];
+			if (record == wait) {
+				fgets(ans, 30, COR);
+				printf("\n\t\t\t     %s\n", ans);
+				if (num < day_words) CR++;
+			}
+			else {
+				if (num < day_words) {
+					fgets(ans, 30, WRO);
+					printf("\n\t\t\t%s%c\n\n", ans, 'A' + wait);
+					addmore[loc++] = num;
+					WR++;
+				}
+				else {
+					WP++;
+					fclose(WRO);
+					FILE *WRO = NULL;
+					if (language) {
+						WRO = fopen("Chinese/Todaystudy/Wrong+.txt", "r");
+						fgets(ans, 100, WRO);
+						printf("\n\t\t%s\n", ans);
+					}
+					else {
+						WRO = fopen("English/Todaystudy/Wrong+.txt", "r");
+						fgets(ans, 100, WRO);
+						printf("\n\t    %s\n", ans);
+					}
+
+					int flag = 0;
+					char *Mid = (char *)malloc(sizeof(char) * 100);
+					FILE *CHE = NULL;
+
+					if (mods)
+						CHE = fopen("Hardwords/Vocabulary.txt", "r");
+					else
+						CHE = fopen("Hardwords/Meaning.txt", "r");
+
+					while (fgets(Mid, 100, CHE) != NULL) {
+						if (!strcmp(Mid, vocabulary)) {
+							flag = 1;
+							break;
+						}
+					}
+					fclose(CHE);
+					free(Mid);
+					if (!flag) {
+						FILE *ADDV = NULL;
+						ADDV = fopen("Hardwords/Vocabulary.txt", "a");
+						if (!mods)
+							fprintf(ADDV, "%s", vocabulary);
+						else
+							fprintf(ADDV, "%s", meanings[list[nums]]);
+						fclose(ADDV);
+
+						FILE *ADDM = NULL;
+						ADDM = fopen("Hardwords/Meaning.txt", "a");
+						if (!mods)
+							fprintf(ADDM, "%s", meanings[list[nums]]);
+						else
+							fprintf(ADDM, "%s", vocabulary);
+						fclose(ADDM);
+						memset(ans, 0, sizeof(ans));
+					}
+				}
+			}
+
+			FILE *NOT = NULL;
+			if (language)
+				NOT = fopen("Chinese/Todaystudy/Notice.txt", "r");
+			else
+				NOT = fopen("English/Todaystudy/Notice.txt", "r");
+			if (NOT == NULL) exit(1);
+			fgets(ans, 32, NOT);
+			if (language)
+				printf("\t");
+			printf("\t\t%s", ans);
+
+			char press;
+			press = _getch();
+			if (press == -32)
+				press = _getch();
+		}
+		system("CLS");
+		record = 0;
+	}
+
+	fclose(QA);
+	fclose(COR);
+	fclose(WRO);
+
+	return;
+}
+
+void Wordsview(FILE *WORDS, FILE *MEANINGS, int language, int total_words, int record) {
+
+	char words[100], meanings[100];
+	FILE *VIE = NULL;
+	if (language)
+		VIE = fopen("Chinese/Wordsview/Wordsview.txt", "r");
+	else
+		VIE = fopen("English/Wordsview/Wordsview.txt", "r");
+	if (VIE == NULL) exit(1);
+
+	int page_total = total_words / 12 + 1;
+	if (total_words % 12 == 0)
+		page_total--;
+	int page_num = 1;
+	int num = 1;
+	int count = 0;
+
+	while (true) {
+		count = 0;
+		num = (page_num - 1) * 12;
+		while (fgets(words, 100, VIE)) {
+			if (count <= 7 || count == 32) {
+				if (count == 3 && record == 3) {
+					printf("%s", words);
+				}
+				else if (count == 3 && record == 2) {
+					FILE *DIFF = NULL;
+					if (language)
+						DIFF = fopen("Chinese/Wordsview/Diff Voc+.txt", "r");
+					else
+						DIFF = fopen("English/Wordsview/Diff Voc+.txt", "r");
+					fgets(words, 100, DIFF);
+					printf("%s", words);
+					fclose(DIFF);
+				}
+				else
+					printf("%s", words);
+			}
+			else if (count == 33) {
+				char *behind;
+				behind = strchr(words, '&') + 1;
+				char bufff[100], buffs[100];
+				sscanf(words, "%[^&]", bufff);
+				sscanf(behind, "%[^&]", buffs);
+				behind = strchr(behind, '&') + 1;
+				printf("%s%d%s%d%s", bufff, page_num, buffs, page_total, behind);
+			}
+			else if (!(count % 2) && count < 32 && num < total_words) {
+				memset(words, 0, sizeof(words));
+
+				*words = Word_fetch(words, WORDS, num);
+				*meanings = Word_fetch(meanings, MEANINGS, num);
+
+				char mid[10];
+				_itoa(++num, mid, 10);
+				int g = strlen(mid);
+				mid[9] = '\0';
+				for (int i = g; i < 9; i++)
+					mid[i] = ' ';
+
+				g = strlen(words);
+				words[23] = '\0';
+				for (int i = g - 1; i < 23; i++)
+					words[i] = ' ';
+
+				printf("     %s%s%s\n", mid, words, meanings);
+			}
+			else if (!(count % 2) && count < 32 && num >= total_words)
+				printf("\n\n");
+
+			count++;
+			memset(words, 0, sizeof(words));
+		}
+		char option;
+		option = _getch();
+		switch (option) {
+		case 'q': case 'Q': case LEFT:
+			if (page_num != 1)
+				page_num--;
+			system("CLS");
+			break;
+		case 'p': case 'P': case RIGHT:
+			if (page_num != page_total)
+				page_num++;
+			system("CLS");
+			break;
+		case ESC:
+			system("CLS");
+			return;
+			break;
+		default:
+			system("CLS");
+			break;
+		}
+		rewind(VIE);
+	}
+	fclose(VIE);
+}
+
+int Settings_Menu(int language) {
+
+	system("CLS");
+	FILE *SET = NULL;
+	if (language)
+		SET = fopen("Chinese/Settings/Settings.txt", "r");
+	else
+		SET = fopen("English/Settings/Settings.txt", "r");
+	if (SET == NULL) exit(1);
+
+	char option;
+	int record = 1;
+
+	while (true) {
+		printf("\n\n\n\n\n\n");
+		char Mid[100] = { 0 };
+		int count = 0;
+
+		while (fgets(Mid, sizeof(Mid), SET)) {
+
+			if ((count == 5 || count == 7 || count == 9 || count == 11) && count / 2 - 1 == record) {
+				Mid[8] = '-', Mid[9] = '-', Mid[10] = '>';
+				int len = strlen(Mid);
+				Mid[len - 1] = '<', Mid[len] = '-', Mid[len + 1] = '-', Mid[len + 2] = '\n';
+			}
+
+			printf("%s", Mid);
+
+			count++;
+			memset(Mid, 0, sizeof(Mid));
+		}
+
+		option = _getch();
+
+		if (isdigit(option) && option <= '4') {
+			record = option - '0';
+		}
+		else {
+			switch (option) {
+			case UP: case 'w': case 'W':
+				if (record > 1)
+					record--;
+				break;
+			case DOWN: case 's': case 'S':
+				if (record < 4)
+					record++;
+				break;
+			case ESC:
+				system("CLS");
+				return 0;
+			default: break;
+			}
+		}
+
+		rewind(SET);
+		system("CLS");
+		if (option == ENTER || (isdigit(option) && option <= '4')) break;
+	}
+
+	fclose(SET);
+
+	return record;
+}
+
+int Settings_Option(int *language, int record, int *day_words, int *mods) {
+
+	int lan = 1;
+	FILE *LAN = NULL;
+	int skin = 1;
+	FILE *SKIN = NULL;
+	char num[20] = { 0 };
+	int count = 0;
+	FILE *NUM = NULL;
+	int mod = 0;
+	FILE *MOD = NULL;
+
+	switch (record) {
+	case 1:
+		if (*language)
+			NUM = fopen("Chinese/Settings/Number.txt", "r");
+		else
+			NUM = fopen("English/Settings/Number.txt", "r");
+		if (NUM == NULL) exit(1);
+
+		char Mid[100];
+
+		while (true) {
+			printf("\n\n\n\n");
+			while (fgets(Mid, sizeof(Mid), NUM)) {
+				printf("%s", Mid);
+				memset(Mid, 0, sizeof(Mid));
+			}
+			Hide_cursor(TRUE);
+			char option_num;
+
+			printf("%s", num);
+			option_num = _getch();
+			if (isdigit(option_num)) {
+				num[count++] = option_num;
+			}
+			else if (option_num == ESC) {
+				system("CLS");
+				Hide_cursor(FALSE);
+				fclose(NUM);
+				return 1;
+			}
+			else if (option_num == ENTER) {
+				Hide_cursor(FALSE);
+				system("CLS");
+				if (atoi(num) > 0 && atoi(num) < 100) {
+					*day_words = atoi(num);
+					fclose(NUM);
+					return 0;
+				}
+				else {
+					rewind(NUM);
+				}
+			}
+			else if (option_num == BACKSPACE) {
+				if (count > 0)
+					num[--count] = '\0';
+			}
+			system("CLS");
+			rewind(NUM);
+			Hide_cursor(FALSE);
+		}
+		break;
+
+	case 2:
+		if (*language)
+			MOD = fopen("Chinese/Settings/Mode.txt", "r");
+		else
+			MOD = fopen("English/Settings/Mode.txt", "r");
+		if (MOD == NULL) exit(1);
+
+		char option;
+
+		while (true) {
+			printf("\n\n\n\n\n\n\n\n");
+			int count = 0;
+			while (fgets(Mid, 100, MOD) != NULL) {
+				if ((count == 5 || count == 7) && 2 * mod + 5 == count) {
+					unsigned int loc = 0;
+					for (loc = 0; loc < strlen(Mid); loc++)
+						if (Mid[loc] != ' ' && Mid[loc] != '\t')
+							break;
+					Mid[loc - 1] = '>', Mid[loc - 2] = '-', Mid[loc - 3] = '-';
+				}
+				printf("%s", Mid);
+				count++;
+			}
+
+			option = _getch();
+			switch (option) {
+			case 'w': case 'W': case UP:
+				if (mod > 0)
+					mod--;
+				break;
+
+			case 's': case 'S': case DOWN:
+				if (mod < 1)
+					mod++;
+				break;
+
+			case '1': case '2':
+				mod = option - '0' - 1;
+				break;
+
+			case ESC:
+				system("CLS");
+				return 1;
+
+			default: break;
+			}
+
+			system("CLS");
+			rewind(MOD);
+			if (option == ENTER || (isdigit(option) && option <= '2'))
+				break;
+		}
+		if (mod)
+			*mods = 1;
+		else
+			*mods = 0;
+
+		fclose(MOD);
+		break;
+
+	case 3:
+		if (*language)
+			LAN = fopen("Chinese/Settings/Language.txt", "r");
+		else
+			LAN = fopen("English/Settings/Language.txt", "r");
+		if (LAN == NULL) exit(1);
+
+		char option_lan;
+
+		while (true) {
+			char Mid[100] = { 0 };
+			int count = 0;
+			printf("\n\n\n\n\n\n\n\n");
+			while (fgets(Mid, sizeof(Mid), LAN)) {
+
+				if ((count == 5 || count == 7) && count / 2 - 1 == lan) {
+					Mid[6] = '-', Mid[7] = '-', Mid[8] = '>';
+				}
+
+				printf("%s", Mid);
+
+				count++;
+				memset(Mid, 0, sizeof(Mid));
+			}
+
+			option_lan = _getch();
+
+			if (isdigit(option_lan) && option_lan <= '2') {
+				lan = option_lan - '0';
+			}
+			else {
+				switch (option_lan) {
+				case UP: case 'w': case 'W':
+					if (lan > 1)
+						lan--;
+					break;
+				case DOWN: case 's': case 'S':
+					if (lan < 2)
+						lan++;
+					break;
+				case ESC:
+					system("CLS");
+					return 1;
+					break;
+				default: break;
+				}
+			}
+
+			rewind(LAN);
+			system("CLS");
+			if (option_lan == ENTER || (isdigit(option_lan) && option_lan <= '2')) break;
+		}
+
+		fclose(LAN);
+		if (lan == 1) {
+			*language = 1;
+		}
+		else if (lan == 2) {
+			*language = 0;
+		}
+
+		break;
+
+	case 4:
+		if (*language)
+			SKIN = fopen("Chinese/Settings/Skin.txt", "r");
+		else
+			SKIN = fopen("English/Settings/Skin.txt", "r");
+		if (SKIN == NULL) exit(1);
+
+		char option_skin;
+
+		while (true) {
+			printf("\n\n");
+			char Mid[100] = { 0 };
+			int count = 0;
+
+			while (fgets(Mid, sizeof(Mid), SKIN)) {
+
+				if ((count >= 5 && count <= 25) && count == skin * 2 + 3) {
+					unsigned int loc = 0;
+					for (loc = 0; loc < strlen(Mid); loc++)
+						if (Mid[loc] != '\t' && Mid[loc] != ' ')
+							break;
+					Mid[loc - 3] = '-', Mid[loc - 2] = '-', Mid[loc - 1] = '>';
+				}
+
+				printf("%s", Mid);
+
+				count++;
+				memset(Mid, 0, sizeof(Mid));
+			}
+
+			option_skin = _getch();
+			while (option_skin == -32)
+				option_skin = _getch();
+
+			if (isdigit(option_skin)) {
+				skin = option_skin - '0';
+			}
+			else {
+				switch (option_skin) {
+				case UP: case 'w': case 'W':
+					if (skin > 1)
+						skin--;
+					break;
+				case DOWN: case 's': case 'S':
+					if (skin < 12)
+						skin++;
+					break;
+				case ESC:
+					system("CLS");
+					return 1;
+					break;
+				default: break;
+				}
+			}
+
+			rewind(SKIN);
+			system("CLS");
+			if (option_skin == ENTER || isdigit(option_skin)) break;
+		}
+		if (skin == 1) system("color 0A");
+		if (skin == 2) system("color 0B");
+		if (skin == 3) system("color 0C");
+		if (skin == 4) system("color 0D");
+		if (skin == 5) system("color 0E");
+		if (skin == 6) system("color 0F");
+		if (skin == 7) system("color F2");
+		if (skin == 8) system("color F9");
+		if (skin == 9) system("color F4");
+		if (skin == 10) system("color F5");
+		if (skin == 11) system("color F6");
+		if (skin == 12) system("color F0");
+
+		fclose(SKIN);
+		break;
+
+	default: break;
+	}
+	return 0;
+}
+
+void Summary(int time, int hard_words, int language) {
+
+	FILE *SUM = NULL;
+	if (language)
+		SUM = fopen("Chinese/Add_Change_Words/Sum.txt", "r");
+	else
+		SUM = fopen("English/Add_Change_Words/Sum.txt", "r");
+	if (SUM == NULL) exit(1);
+
+	int count = 0;
+	char *Mid = (char *)malloc(sizeof(char) * 100);
+
+	printf("\n\n");
+	while (fgets(Mid, 100, SUM) != NULL) {
+		printf("        ");
+
+		if (count == 6) {
+			int hour = time / 3600;
+			int min = time / 60;
+			int sec = time % 60;
+			char part1[20], part2[20], part3[20];
+			char *behind1, *behind2, *behind3;
+
+			sscanf(Mid, "%[^&]", part1);
+			behind1 = strchr(Mid, '&') + 1;
+			sscanf(behind1, "%[^&]", part2);
+			behind2 = strchr(behind1, '&') + 1;
+			sscanf(behind2, "%[^&]", part3);
+			behind3 = strchr(behind2, '&') + 1;
+
+			printf("%s%d%s%d%s%d%s", part1, hour, part2, min, part3, sec, behind3);
+		}
+		else if (count == 9) {
+			Mid[strlen(Mid) - 1] = '\0';
+			printf("%s%d\n", Mid, CR);
+		}
+		else if (count == 13) {
+			Mid[strlen(Mid) - 1] = '\0';
+			printf("%s%d\n", Mid, WR);
+		}
+		else if (count == 15) {
+			Mid[strlen(Mid) - 1] = '\0';
+			printf("%s%d\n", Mid, WP);
+		}
+		else if (count == 17) {
+			Mid[strlen(Mid) - 1] = '\0';
+			printf("%s%d\n", Mid, hard_words);
+		}
+		else printf("%s", Mid);
+
+		count++;
+	}
+
+	char button = _getch();
+	system("CLS");
+	fclose(SUM);
+	free(Mid);
+	exit(0);
+}
+
+int Change_Add_Words(int language, int hard_words) {
+
+	int record = 1;
+	FILE *OP = NULL;
+	if (language)
+		OP = fopen("Chinese/Add_Change_Words/WordChange.txt", "r");
+	else
+		OP = fopen("English/Add_Change_Words/WordChange.txt", "r");
+	if (OP == NULL) exit(1);
+
+	char *Mid = (char *)malloc(sizeof(char) * 100);
+	char option;
+	int count = 0;
+
+	while (true) {
+		count = 0;
+		printf("\n\n\n\n\n\n\n");
+		while (fgets(Mid, 100, OP) != NULL) {
+			if (2 * record + 3 == count) {
+				unsigned int loc = 0;
+				for (loc = 0; loc < strlen(Mid); loc++)
+					if (Mid[loc] != ' ' && Mid[loc] != '\t')
+						break;
+				Mid[loc - 1] = '>', Mid[loc - 2] = '-', Mid[loc - 3] = '-';
+				loc = strlen(Mid);
+				Mid[loc - 1] = '<', Mid[loc] = '-', Mid[loc + 1] = '-', Mid[loc + 2] = '\0';
+
+				printf("%s\n", Mid);
+			}
+			else
+				printf("%s", Mid);
+
+			memset(Mid, 0, sizeof(Mid));
+			count++;
+		}
+
+		if (record == 1 && !hard_words) {
+			printf("\n\n\n");
+			FILE *NO = NULL;
+			if (language)
+				NO = fopen("Chinese/Add_Change_Words/No.txt", "r");
+			else
+				NO = fopen("English/Add_Change_Words/No.txt", "r");
+			if (NO == NULL) exit(1);
+			char noti[100];
+			fgets(noti, sizeof(noti), NO);
+			printf("%s", noti);
+			fclose(NO);
+		}
+
+		option = _getch();
+		if (isdigit(option) && option <= '3')
+			record = option - '0';
+		else
+			switch (option) {
+			case UP: case 'w': case 'W':
+				if (record > 1)
+					record--;
+				break;
+
+			case DOWN: case 's': case 'S':
+				if (record < 3)
+					record++;
+				break;
+
+			case ESC:
+				system("CLS");
+				return 0;
+
+			default: break;
+			}
+
+		rewind(OP);
+		system("CLS");
+		if (option == ENTER || (isdigit(option) && option <= '3'))
+			break;
+	}
+
+	free(Mid);
+	fclose(OP);
+	return record;
+}
+
+int Words_Option(int change, int hard_words, int language, FILE *DIFFW, FILE *DIFFM) {
+
+	int back = 1;
+	switch (change) {
+	case 0:
+		return 0;
+
+	case 1:
+		back = Changewords(hard_words, language, DIFFW, DIFFM);
+		return back;
+		break;
+
+	case 2:
+		back = Addwords(hard_words, language);
+		return back;
+		break;
+
+	case 3:
+		back = Empty(hard_words, language);
+		return back;
+		break;
+
+	default:
+		return 0;
+		break;
+	}
+}
+
+int Changewords(int hard_words, int language, FILE *DIFFW, FILE *DIFFM) {
+
+	if (!hard_words) return 1;
+	char Mid[100];
+	FILE *CHA = NULL;
+	if (language)
+		CHA = fopen("Chinese/Add_Change_Words/Change.txt", "r");
+	else
+		CHA = fopen("English/Add_Change_Words/Change.txt", "r");
+	if (CHA == NULL) exit(1);
+	int count = 0;
+	char num[20] = { 0 };
+	int line = 0;
+	int len = 0;
+	while (true) {
+		printf("\n\n\n\n");
+		count = 0;
+		while (fgets(Mid, sizeof(Mid), CHA) != NULL) {
+			if (count == 10) {
+				char buff[100];
+				sscanf(Mid, "%[^&]", buff);
+				char *bedd = strchr(Mid, '&') + 1;
+				printf("%s%d%s", buff, hard_words, bedd);
+			}
+			else printf("%s", Mid);
+			memset(Mid, 0, sizeof(Mid));
+			count++;
+		}
+		Hide_cursor(TRUE);
+		char option_num;
+
+		printf("%s", num);
+		option_num = _getch();
+		if (isdigit(option_num)) {
+			num[len++] = option_num;
+		}
+		else if (option_num == ESC) {
+			system("CLS");
+			Hide_cursor(FALSE);
+			fclose(CHA);
+			return 1;
+		}
+		else if (option_num == ENTER) {
+			Hide_cursor(FALSE);
+			system("CLS");
+			if (atoi(num) >= 1 && atoi(num) <= hard_words) {
+				line = atoi(num);
+				fclose(CHA);
+				int back = 0;
+				back = Sec_Operation(line, language, DIFFW, DIFFM);
+				return back;
+
+			}
+			else {
+				rewind(CHA);
+			}
+		}
+		else if (option_num == BACKSPACE) {
+			if (count > 0)
+				num[--len] = '\0';
+		}
+		system("CLS");
+		rewind(CHA);
+		Hide_cursor(FALSE);
+	}
+
+
+}
+
+int Sec_Operation(int line, int language, FILE *DIFFW, FILE *DIFFM) {
+
+	int hard_words = Line_check_count(DIFFW, DIFFM);
+	FILE *FIN = NULL;
+	if (language)
+		FIN = fopen("Chinese/Add_Change_Words/Finf.txt", "r");
+	else
+		FIN = fopen("English/Add_Change_Words/Finf.txt", "r");
+	if (FIN == NULL) exit(1);
+	FILE *SU = NULL;
+	FILE *SM = NULL;
+	FILE *NOI = NULL;
+
+	char JEEF[200] = { 0 };
+	char *Mid = (char *)malloc(sizeof(char) * 1000);
+	char option;
+	char option_wo;
+	int multiple = 1;
+	int record = 1;
+	int loc1;
+	unsigned int loc = 0;
+	int flag = 0;
+	int flagmore = 0;
+	int len = 0;
+	char WORD[20] = { 0 };
+	char MEANING[50] = { 0 };
+	while (true) {
+		int count = 0;
+		printf("\n\n");
+		while (fgets(Mid, 200, FIN) != NULL) {
+			if (count <= 11) {
+				switch (count) {
+				case 5:
+					Mid[strlen(Mid) - 1] = '\0';
+					printf("%s%d\n", Mid, line);
+					break;
+
+				case 7:
+					Mid[strlen(Mid) - 1] = '\0';
+					printf("%s", Mid);
+					memset(Mid, 0, sizeof(Mid));
+					Mid[0] = Word_fetch(Mid, DIFFW, line - 1);
+					printf("%s", Mid);
+					rewind(DIFFW);
+					break;
+
+				case 9:
+					Mid[strlen(Mid) - 1] = '\0';
+					printf("%s", Mid);
+					memset(Mid, 0, sizeof(Mid));
+					Mid[0] = Word_fetch(Mid, DIFFM, line - 1);
+					printf("%s", Mid);
+					rewind(DIFFM);
+					break;
+
+				default:
+					printf("%s", Mid);
+					break;
+				}
+			}
+			if (count > 11)
+				switch (flag) {
+				case 0:
+					if (count == 2 * record + 12 + 1) {
+						for (loc = 0; loc < strlen(Mid); loc++)
+							if (Mid[loc] != '\t' && Mid[loc] != ' ')
+								break;
+						Mid[loc - 1] = '>', Mid[loc - 2] = '-', Mid[loc - 3] = '-';
+					}
+					printf("%s", Mid);
+					break;
+
+				case 1:
+					count = 0;
+					while (fgets(Mid, 200, SU) != NULL) {
+						if (count <= 6 && flagmore == 2) {
+							count++;
+							continue;
+						}
+						if (count == 8 && flagmore) {
+							Mid[strlen(Mid) - 1] = '\0';
+							if (language) {
+								if (flagmore == 1)
+									printf("%s%s\n", Mid, WORD);
+								else
+									printf("   %s%s\n", Mid, WORD);
+							}
+							else printf("%s%s\n", Mid, WORD);
+						}
+						else if (count == 10 && flagmore == 2) {
+							Mid[strlen(Mid) - 1] = '\0';
+							if (language)
+								printf("   %s%s\n", Mid, MEANING);
+							else
+								printf("%s%s\n", Mid, MEANING);
+						}
+						else
+							printf("%s", Mid);
+						if (count >= 11 && flagmore == 2) break;
+						count++;
+					}
+
+					Hide_cursor(TRUE);
+
+					if (!flagmore) {
+						if (language)
+							goto_xy(19, 22);
+						else
+							goto_xy(25, 22);
+						printf("%s", WORD);
+						option_wo = _getch();
+						while (option_wo == -32)
+							option_wo = _getch();
+						switch (option_wo) {
+						case ESC:
+							Hide_cursor(FALSE);
+							free(Mid);
+							fclose(SU);
+							fclose(FIN);
+							fclose(SM);
+							system("CLS");
+							return 1;
+
+						case BACKSPACE:
+							Hide_cursor(FALSE);
+							system("CLS");
+							if (len > 0)
+								WORD[--len] = '\0';
+							break;
+						}
+
+						if (option_wo != ' ' && !isdigit(option_wo) && option_wo != BACKSPACE && option_wo != ENTER) {
+							WORD[len++] = option_wo;
+							Hide_cursor(FALSE);
+						}
+						if (option_wo == ENTER) {
+							Hide_cursor(FALSE);
+							flagmore = 1;
+							rewind(SU);
+							count = 0;
+							system("CLS");
+							rewind(FIN);
+							printf("\n\n");
+							if (!len) {
+								WORD[0] = Word_fetch(WORD, DIFFW, line - 1);
+								WORD[strlen(WORD) - 1] = '\0';
+							}
+							continue;
+						}
+
+					}
+					else if (flagmore == 1) {
+						if (language)
+							goto_xy(19, 24);
+						else
+							goto_xy(25, 24);
+
+						fgets(MEANING, 50, stdin);
+						if (MEANING != NULL && MEANING[0] != '\n') {
+							MEANING[strlen(MEANING) - 1] = '\0';
+							for (loc = 0; loc < strlen(MEANING); loc++)
+								if (MEANING[loc] != ' ' && MEANING[loc] != '\t')
+									break;
+							if (loc) {
+								for (unsigned int k = 0; k < strlen(MEANING) - loc; k++)
+									MEANING[k] = MEANING[k + loc];
+								MEANING[strlen(MEANING) - loc] = '\0';
+							}
+							for (loc = strlen(MEANING) - 1; loc >= 0; loc--)
+								if (MEANING[loc] != ' ' && MEANING[loc] != '\t')
+									break;
+							MEANING[loc + 1] = '\0';
+						}
+						else {
+							MEANING[0] = Word_fetch(MEANING, DIFFM, line - 1);
+							MEANING[strlen(MEANING) - 1] = '\0';
+						}
+						loc = 0;
+						Mid[0] = Word_fetch(Mid, DIFFW, line - 1);
+						Mid[strlen(Mid) - 1] = '\0';
+						if (!strcmp(Mid, WORD)) loc++;
+						Mid[0] = Word_fetch(Mid, DIFFM, line - 1);
+						Mid[strlen(Mid) - 1] = '\0';
+						if (!strcmp(Mid, MEANING)) loc++;
+						flagmore = 2;
+						loc1 = 0;
+						len = 0;
+						while (len < hard_words) {
+							if (len == line - 1) {
+								len++;
+								continue;
+							}
+							JEEF[0] = Word_fetch(JEEF, DIFFW, len);
+							JEEF[strlen(JEEF) - 1] = '\0';
+							len++;
+							if (!strcmp(JEEF, WORD)) {
+								loc1++;
+								break;
+							}
+						}
+						if (loc1 == 0) {
+							len = 0;
+							while (len < hard_words) {
+								if (len == line - 1) {
+									len++;
+									continue;
+								}
+								JEEF[0] = Word_fetch(JEEF, DIFFM, len);
+								JEEF[strlen(JEEF) - 1] = '\0';
+								len++;
+								if (!strcmp(JEEF, MEANING)) {
+									loc1++;
+									break;
+								}
+							}
+						}
+
+						if (loc == 2 || loc1) {
+							if (language)
+								goto_xy(19, 24);
+							else
+								goto_xy(25, 24);
+							flagmore = 0;
+							printf("%s", MEANING);
+							memset(WORD, 0, sizeof(WORD));
+							memset(MEANING, 0, sizeof(MEANING));
+							goto_xy(0, 32);
+							if (language)
+								NOI = fopen("Chinese/Add_Change_Words/Noti.txt", "r");
+							else
+								NOI = fopen("English/Add_Change_Words/Noti.txt", "r");
+							if (NOI == NULL) exit(1);
+							fgets(JEEF, sizeof(JEEF), NOI);
+							if (loc1)
+								fgets(JEEF, sizeof(JEEF), NOI);
+							printf("%s", JEEF);
+							rewind(NOI);
+							Hide_cursor(FALSE);
+							multiple = 1;
+							len = 0;
+							while (multiple <= 60) {
+								Sleep(50);
+								if (_kbhit()) {
+									char get = _getch();
+									break;
+								}
+								multiple++;
+							}
+
+						}
+						Hide_cursor(FALSE);
+						loc = 0;
+					}
+					else {
+						Hide_cursor(FALSE);
+						count = 0;
+						while (fgets(JEEF, sizeof(JEEF), SM) != NULL) {
+							if (count == 4) {
+								if (record == 1) {
+									JEEF[21] = '<', JEEF[22] = '-';
+								}
+								else {
+									JEEF[37] = '>', JEEF[36] = '-';
+								}
+
+							}
+							printf("%s", JEEF);
+
+							count++;
+						}
+
+						option = _getch();
+						while (option == -32)
+							option = _getch();
+						switch (option) {
+						case LEFT: case 'a': case 'A': case 'q': case 'Q':
+							if (record > 1)
+								record--;
+							break;
+
+						case RIGHT: case 'd': case 'D': case 'p': case 'P':
+							if (record < 2)
+								record++;
+							break;
+
+						case ESC:
+							free(Mid);
+							fclose(SU);
+							fclose(FIN);
+							fclose(SM);
+							system("CLS");
+							return 1;
+
+						case '1': case '2':
+							record = option - '0';
+							break;
+						}
+						if (option == '1' || option == '2' || option == ENTER) {
+							if (record == 1) {
+								File_Operation(0, line, WORD, DIFFW, hard_words);
+								File_Operation(1, line, MEANING, DIFFM, hard_words);
+								free(Mid);
+								fclose(SU);
+								fclose(FIN);
+								fclose(SM);
+
+								if (language)
+									SU = fopen("Chinese/Add_Change_Words/Result.txt", "r");
+								else
+									SU = fopen("English/Add_Change_Words/Result.txt", "r");
+								fgets(JEEF, sizeof(JEEF), SU);
+								fgets(JEEF, sizeof(JEEF), SU);
+								printf("\n\n%s", JEEF);
+								while (multiple <= 60) {
+									Sleep(50);
+									if (_kbhit()) {
+										char get = _getch();
+										break;
+									}
+									multiple++;
+								}
+								system("CLS");
+
+								return 0;
+							}
+							else {
+								memset(WORD, 0, sizeof(WORD));
+								memset(MEANING, 0, sizeof(MEANING));
+								flagmore = 0;
+								loc = 0;
+								len = 0;
+								record = 1;
+							}
+						}
+						rewind(SM);
+					}
+
+					rewind(SU);
+					count = 12;
+					break;
+
+				case 2:
+					count = 0;
+					while (fgets(Mid, 200, SU) != NULL) {
+						if (2 * record + 1 == count) {
+							for (loc = 0; loc < strlen(Mid); loc++)
+								if (Mid[loc] != ' ' && Mid[loc] != '\t')
+									break;
+							Mid[loc - 1] = '>', Mid[loc - 2] = '-', Mid[loc - 3] = '-';
+						}
+						printf("%s", Mid);
+						count++;
+					}
+					rewind(SU);
+					count = 12;
+					break;
+
+				}
+			if (flag && count > 11) break;
+			count++;
+		}
+		if (flag != 1) {
+			option = _getch();
+			while (option == -32)
+				option = _getch();
+		}
+		else
+			option = -1;
+		switch (option) {
+		case UP: case 'w': case 'W':
+			if (record > 1)
+				record--;
+			break;
+
+		case DOWN: case 's': case 'S':
+			if (record < 2)
+				record++;
+			break;
+
+		case ESC:
+			free(Mid);
+			fclose(FIN);
+			system("CLS");
+			return 1;
+
+		case '1': case '2':
+			record = option - '0';
+			break;
+
+		default:
+			break;
+		}
+		system("CLS");
+		rewind(FIN);
+		if (flag != 1)
+			if (option == '1' || option == '2' || option == ENTER) {
+				if (!flag) {
+					if (record == 1) {
+						flag = 1;
+						if (language)
+							SU = fopen("Chinese/Add_Change_Words/Sure+.txt", "r");
+						else
+							SU = fopen("English/Add_Change_Words/Sure+.txt", "r");
+						if (SU == NULL) exit(1);
+
+						if (language)
+							SM = fopen("Chinese/Add_Change_Words/Sure++.txt", "r");
+						else
+							SM = fopen("English/Add_Change_Words/Sure++.txt", "r");
+						if (SM == NULL) exit(1);
+						len = 0;
+					}
+					else {
+						record = 1;
+						flag = 2;
+						if (language)
+							SU = fopen("Chinese/Add_Change_Words/Sure-.txt", "r");
+						else
+							SU = fopen("English/Add_Change_Words/Sure-.txt", "r");
+						if (SU == NULL) exit(1);
+					}
+				}
+				else {
+					if (record == 1) {
+						memset(Mid, 0, sizeof(Mid));
+						File_Operation(0, line, Mid, DIFFW, hard_words);
+						File_Operation(1, line, Mid, DIFFM, hard_words);
+
+						free(Mid);
+						fclose(FIN);
+						system("CLS");
+						return 0;
+					}
+					else {
+						free(Mid);
+						fclose(FIN);
+						system("CLS");
+						return 1;
+					}
+				}
+
+			}
+	}
+}
+
+void File_Operation(int control, int line, char Mid[100], FILE *DIFF, int hard_words) {
+	char name_f[] = "Hardwords/Wait.txt";
+	char name_s[20];
+	if (!control)
+		strcpy(name_s, "Hardwords/Vocabulary.txt");
+	else
+		strcpy(name_s, "Hardwords/Meaning.txt");
+
+	line--;
+	FILE *NE = NULL;
+	NE = fopen(name_f, "w");
+	char swi[100] = { 0 };
+	int count = 0;
+	while (count < hard_words) {
+		if (count == line) {
+			if (strlen(Mid))
+				fprintf(NE, "%s\n", Mid);
+		}
+		else {
+			swi[0] = Word_fetch(swi, DIFF, count);
+			fprintf(NE, "%s", swi);
+		}
+
+		memset(swi, 0, sizeof(swi));
+		count++;
+	}
+	if (!strlen(Mid))
+		hard_words--;
+	fclose(NE);
+	fclose(DIFF);
+	NE = fopen(name_f, "r");
+	DIFF = fopen(name_s, "w");
+	fclose(DIFF);
+	DIFF = fopen(name_s, "a");
+	while (fgets(swi, 100, NE) != NULL) {
+		fprintf(DIFF, "%s", swi);
+		memset(swi, 0, sizeof(swi));
+	}
+	fclose(NE);
+	remove(name_f);
+	fclose(DIFF);
+}
+
+int Addwords(int hard_words, int language) {
+
+	FILE *ADD = NULL;
+	if (language)
+		ADD = fopen("Chinese/Add_Change_Words/Add.txt", "r");
+	else
+		ADD = fopen("English/Add_Change_Words/Add.txt", "r");
+	if (ADD == NULL) exit(1);
+
+	char Mid[500];
+	char WORD[20] = { 0 }, MEANING[50] = { 0 };
+
+	int count = 0;
+	int len = 0;
+	int flag = 0;
+	int record = 1;
+	while (true) {
+		printf("\n\n");
+		count = 0;
+		while (fgets(Mid, 100, ADD) != NULL) {
+			if (count == 12) {
+				char *part1 = (char *)malloc(sizeof(char) * 100);
+				char *part2;
+				sscanf(Mid, "%[^&]", part1);
+				part2 = strchr(Mid, '&') + 1;
+				printf("%s%d%s", part1, hard_words + 1, part2);
+				free(part1);
+			}
+			else if (count == 16 && flag) {
+				Mid[strlen(Mid) - 1] = '\0';
+				printf("%s%s\n", Mid, WORD);
+			}
+			else if (count == 18 && flag == 2) {
+				Mid[strlen(Mid) - 1] = '\0';
+				printf("%s%s\n", Mid, MEANING);
+			}
+			else printf("%s", Mid);
+			count++;
+		}
+		Hide_cursor(TRUE);
+
+		if (!flag) {
+			if (language)
+				goto_xy(19, 18);
+			else
+				goto_xy(21, 18);
+			printf("%s", WORD);
+			char option_wo;
+			option_wo = _getch();
+			switch (option_wo) {
+			case ESC:
+				fclose(ADD);
+				Hide_cursor(FALSE);
+				system("CLS");
+				return 1;
+
+			case BACKSPACE:
+				if (len > 0)
+					WORD[--len] = '\0';
+
+			}
+			if (option_wo != ' ' && !isdigit(option_wo) && option_wo != BACKSPACE && option_wo != ENTER)
+				WORD[len++] = option_wo;
+			rewind(ADD);
+			system("CLS");
+			Hide_cursor(FALSE);
+			if (option_wo == ENTER) {
+				flag = 1;
+				continue;
+			}
+		}
+		else if (flag == 1) {
+			if (language)
+				goto_xy(19, 20);
+			else
+				goto_xy(21, 20);
+			fgets(MEANING, 50, stdin);
+			if (MEANING != NULL && MEANING[0] != '\n') {
+				MEANING[strlen(MEANING) - 1] = '\0';
+				unsigned int loc = 0;
+				for (loc = 0; loc < strlen(MEANING); loc++)
+					if (MEANING[loc] != ' ' && MEANING[loc] != '\t')
+						break;
+				if (loc) {
+					for (unsigned int k = 0; k < strlen(MEANING) - loc; k++)
+						MEANING[k] = MEANING[k + loc];
+					MEANING[strlen(MEANING) - loc] = '\0';
+				}
+				for (loc = strlen(MEANING) - 1; loc >= 0; loc--)
+					if (MEANING[loc] != ' ' && MEANING[loc] != '\t')
+						break;
+				MEANING[loc + 1] = '\0';
+			}
+			Hide_cursor(FALSE);
+			rewind(ADD);
+			flag = 2;
+			system("CLS");
+			continue;
+		}
+		else if (flag == 2) {
+			Hide_cursor(FALSE);
+			char option;
+			FILE *SU = NULL;
+			if (language)
+				SU = fopen("Chinese/Add_Change_Words/Sure.txt", "r");
+			else
+				SU = fopen("English/Add_Change_Words/Sure.txt", "r");
+			if (SU == NULL) exit(1);
+			count = 0;
+			while (fgets(Mid, 100, SU) != NULL) {
+				if (2 * record + 3 == count) {
+					unsigned int loc = 0;
+					for (loc = 0; loc < strlen(Mid); loc++)
+						if (Mid[loc] != ' ' && Mid[loc] != '\t')
+							break;
+					Mid[loc - 1] = '>', Mid[loc - 2] = '-', Mid[loc - 3] = '-';
+				}
+				printf("%s", Mid);
+				count++;
+				memset(Mid, 0, sizeof(Mid));
+			}
+			option = _getch();
+			while (option == -32)
+				option = _getch();
+			switch (option) {
+			case UP: case 'w': case 'W':
+				if (record > 1)
+					record--;
+				system("CLS");
+				break;
+
+			case DOWN: case 's': case 'S':
+				if (record < 2)
+					record++;
+				system("CLS");
+				break;
+
+			case '1': case '2':
+				record = option - '0';
+				break;
+
+			case ESC:
+				fclose(ADD);
+				fclose(SU);
+				system("CLS");
+				return 1;
+
+			case ENTER:
+				//		system("CLS");
+				break;
+			default:
+				system("CLS");
+				break;
+			}
+			rewind(SU);
+			rewind(ADD);
+
+			if ((option == '1' || option == ENTER) && record == 1 && (len && MEANING[0] != '\n')) {
+				fclose(ADD);
+				fclose(SU);
+
+				FILE *CHE = NULL;
+				CHE = fopen("Hardwords/Vocabulary.txt", "r");
+				if (CHE == NULL) exit(1);
+				int cheline = 0;
+				int check = 0;
+
+				while (cheline <= hard_words) {
+					memset(Mid, 0, sizeof(Mid));
+					fgets(Mid, sizeof(Mid), CHE);
+					Mid[strlen(Mid) - 1] = '\0';
+					if (!strcmp(Mid, WORD)) {
+						check = 1;
+						break;
+					}
+					cheline++;
+				}
+				fclose(CHE);
+
+				FILE *RE = NULL;
+				if (language)
+					RE = fopen("Chinese/Add_Change_Words/Result.txt", "r");
+				else
+					RE = fopen("English/Add_Change_Words/Result.txt", "r");
+				cheline = 0;
+				if (check) {
+					fgets(Mid, 100, RE);
+					printf("\n\n%s", Mid);
+				}
+				else {
+					FILE *DIFFW = NULL;
+					DIFFW = fopen("Hardwords/Vocabulary.txt", "a");
+					fprintf(DIFFW, "%s\n", WORD);
+					FILE *DIFFM = NULL;
+					DIFFM = fopen("Hardwords/Meaning.txt", "a");
+					fprintf(DIFFM, "%s\n", MEANING);
+					fclose(DIFFW);
+					fclose(DIFFM);
+					for (cheline = 0; cheline <= 1; cheline++)
+						fgets(Mid, 100, RE);
+					printf("\n\n%s", Mid);
+				}
+				fclose(RE);
+
+				int multiple = 1;
+				while (multiple <= 60) {
+					Sleep(50);
+					if (_kbhit()) {
+						char get = _getch();
+						system("CLS");
+						return 0;
+					}
+					multiple++;
+				}
+
+				system("CLS");
+				return 0;
+			}
+			else if ((option == '1' || option == ENTER) && record == 1 && !(len && MEANING[0] != '\n')) {
+				flag = 0;
+				len = 0;
+				memset(WORD, 0, sizeof(WORD));
+				memset(MEANING, 0, sizeof(MEANING));
+				FILE *WA = NULL;
+				if (language)
+					WA = fopen("Chinese/Add_Change_Words/Warning.txt", "r");
+				else
+					WA = fopen("English/Add_Change_Words/Warning.txt", "r");
+				fgets(Mid, 100, WA);
+				printf("\n\n%s", Mid);
+				int multiple = 1;
+				while (multiple <= 60) {
+					Sleep(50);
+					if (_kbhit()) {
+						char get = _getch();
+						system("CLS");
+						break;
+					}
+					multiple++;
+				}
+
+				system("CLS");
+
+			}
+			else if ((option == '2' || option == ENTER) && record == 2) {
+				flag = 0;
+				memset(WORD, 0, sizeof(WORD));
+				memset(MEANING, 0, sizeof(MEANING));
+				system("CLS");
+				record = 1;
+			}
+		}
+	}
+}
+
+int Empty(int hard_words, int language) {
+
+	FILE *EM = NULL;
+	if (language)
+		EM = fopen("Chinese/Add_Change_Words/Empty.txt", "r");
+	else
+		EM = fopen("English/Add_Change_Words/Empty.txt", "r");
+
+	char *Mid = (char *)malloc(sizeof(char) * 100);
+
+	int record = 1;
+	char option;
+	while (true) {
+		int count = 0;
+		printf("\n\n\n\n\n\n");
+		while (fgets(Mid, 100, EM) != NULL) {
+			if (count == 2) {
+				char *part1 = (char *)malloc(sizeof(char) * 100);
+				char *part2;
+				sscanf(Mid, "%[^&]", part1);
+				part2 = strchr(Mid, '&') + 1;
+				printf("%s%d%s", part1, hard_words, part2);
+				free(part1);
+			}
+			if (2 * record + 6 == count) {
+				unsigned int loc = 0;
+				for (loc = 0; loc < strlen(Mid); loc++)
+					if (Mid[loc] != ' ' && Mid[loc] != '\t')
+						break;
+				Mid[loc - 1] = '>', Mid[loc - 2] = '-', Mid[loc - 3] = '-';
+			}
+			if (count != 2)
+				printf("%s", Mid);
+
+			count++;
+		}
+
+		rewind(EM);
+		option = _getch();
+		switch (option) {
+		case UP: case 'w': case 'W':
+			if (record > 1)
+				record--;
+			break;
+
+		case DOWN: case 's': case 'S':
+			if (record < 2)
+				record++;
+			break;
+
+		case '1': case '2':
+			record = option - '0';
+			break;
+		}
+		system("CLS");
+		if (option == ESC || option == ENTER || isdigit(option)) {
+			break;
+		}
+	}
+	if (option == ESC || record == 2) {
+		free(Mid);
+		fclose(EM);
+		return 1;
+	}
+	FILE *DIFFW = NULL;
+	FILE *DIFFM = NULL;
+	DIFFW = fopen("Hardwords/Vocabulary.txt", "w");
+	DIFFM = fopen("Hardwords/Meaning.txt", "w");
+	fclose(DIFFW);
+	fclose(DIFFM);
+	return 0;
+}
+
+void goto_xy(int x, int y) {
+	HANDLE hOut;
+	hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+	COORD pos = { (short)x, (short)y };
+	SetConsoleCursorPosition(hOut, pos);
+}
+
+void Hide_cursor(int Control) {
+	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+	CONSOLE_CURSOR_INFO cci;
+	GetConsoleCursorInfo(hOut, &cci);
+	cci.bVisible = Control;
+	SetConsoleCursorInfo(hOut, &cci);
+	return;
+}
+
+void Directions(int language) {
+	FILE *DIR = NULL, *NOT = NULL;
+	if (language) {
+		DIR = fopen("Chinese/Directions/Developers Directions.txt", "r");
+		NOT = fopen("Chinese/Directions/Notice.txt", "r");
+	}
+	else {
+		DIR = fopen("English/Directions/Developers Directions.txt", "r");
+		NOT = fopen("English/Directions/Notice.txt", "r");
+	}
+	if (DIR == NULL || NOT == NULL) exit(1);
+
+	char Mid[100] = { 0 };
+	char Not[100] = { 0 };
+	char end = 0;
+	fgets(Not, sizeof(Not), NOT);
+	printf("\t\t   %s\n\n", Not);
+	while (true) {
+		for (int line = 0; line <= 54; line++) {
+			Mid[0] = Word_fetch(Mid, DIR, line);
+			printf("%s", Mid);
+			Sleep(500);
+			if (_kbhit()) {
+				end = _getch();
+				break;
+			}
+		}
+		printf("\t\t  %s\n\n", Not);
+		if (end) break;
+	}
+	rewind(DIR);
+	rewind(NOT);
+	fclose(DIR);
+	fclose(NOT);
+	system("CLS");
+	return;
+}
